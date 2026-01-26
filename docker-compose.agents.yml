@@ -1,0 +1,59 @@
+# Docker Compose for scaling multiple agent instances
+version: '3.8'
+
+services:
+  # LiveKit Server (already running)
+  livekit-server:
+    image: livekit/livekit-server:latest
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+    volumes:
+      - ./config/livekit.yaml:/etc/livekit.yaml:ro
+    command: ["--config", "/etc/livekit.yaml"]
+
+  # Redis (already running)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  # Multiple Agent Instances
+  sales-agent-1:
+    build: ./agents
+    environment:
+      - LIVEKIT_URL=ws://livekit-server:7880
+      - LIVEKIT_API_KEY=APIcA62hn2JKGHg
+      - LIVEKIT_API_SECRET=dbtqsLSMNVWM5yXjqkZRRSoFvNHRLbDtg5k5BOMV6PH
+      - AGENT_INSTANCE_ID=agent-1
+    depends_on:
+      - livekit-server
+      - redis
+
+  sales-agent-2:
+    build: ./agents
+    environment:
+      - LIVEKIT_URL=ws://livekit-server:7880
+      - LIVEKIT_API_KEY=APIcA62hn2JKGHg
+      - LIVEKIT_API_SECRET=dbtqsLSMNVWM5yXjqkZRRSoFvNHRLbDtg5k5BOMV6PH
+      - AGENT_INSTANCE_ID=agent-2
+    depends_on:
+      - livekit-server
+      - redis
+
+  # Add more agents as needed...
+  # sales-agent-3, sales-agent-4, etc.
+
+  # Load Balancer (optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - sales-agent-1
+      - sales-agent-2
+
+
+
