@@ -2,9 +2,15 @@ services:
   livekit-server:
     image: livekit/livekit-server:latest
     container_name: livekit-server
+    environment:
+      - LIVEKIT_AGENT_ENABLED=true
+      - LIVEKIT_AGENT_NAME=sales-agent # Forces the server to associate blank requests with this name
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "7880:7880"    # LiveKit server port
       - "7881:7881"    # LiveKit WebSocket port
+      - "7882:7882/udp"
     volumes:
       - ./config/livekit.yaml:/etc/livekit.yaml:ro
     networks:
