@@ -30,14 +30,15 @@ from dotenv import load_dotenv
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, JobRequest, WorkerType
 from livekit import rtc  # low-level audio primitives (AudioSource, AudioFrame, etc.)
 from livekit.plugins import groq  # STT / LLM provider (not fully used yet)
-
+from livekit.agents import llm
+from livekit.plugins import silero
 # ---------------------------------------------------------------------------
 # Logging setup
 # ---------------------------------------------------------------------------
 # Load environment variables
 load_dotenv()
-
-logging.basicConfig(level=logging.INFO)
+vad = silero.VAD.load()
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -79,7 +80,8 @@ class GroqPreRecordedAgent:
         # the audio pipeline is not wired. When we hook in real STT/LLM, we'll
         # likely add something like:
         #
-        #   self.stt = groq.STT(model="whisper-large-v3-turbo", language="en")
+        self.stt = groq.STT(model="whisper-large-v3-turbo", language="en")
+        self.classifier_llm = groq.LLM(model="llama-3.1-8b-instant")
         #   self.classifier_llm = groq.LLM(model="llama-3.1-8b-instant")
         #
         # and then use them in the TODO sections below.
@@ -87,6 +89,54 @@ class GroqPreRecordedAgent:
     # ------------------------------------------------------------------
     # Classification logic (keyword-first, LLM-later)
     # ------------------------------------------------------------------
+
+    async def classify_with_llm(self, transcript: str) -> Literal["POSITIVE", "NEGATIVE"]:
+        # 1. Define messages list using the [content] list format your environment requires
+        system_msg = (
+            "Classify sales call intent as 'POSITIVE' or 'NEGATIVE'. "
+            "POSITIVE: Interest, consent, or willingness to listen. "
+            "NEGATIVE: Refusal, busy, driving, or asking to stop. "
+            "Output ONLY 'POSITIVE' or 'NEGATIVE'."
+        )
+    
+        messages = [
+            llm.ChatMessage(
+                role="system",
+                content= [system_msg]
+            ),
+            llm.ChatMessage(
+                role="user",
+                content=[f"Is this response positive or negative?: '{transcript}'"]
+            )
+        ]
+
+        # 2. Pass messages as a POSITIONAL argument, not a keyword argument
+        chat_ctx = llm.ChatContext(messages) 
+        
+        logger.info(f"[SalesAgent] Sending to Groq: {transcript}")
+
+        try:
+            # 3. Call the LLM
+            # Note: If your Groq plugin is older, you may need to use 'chat_ctx=chat_ctx' 
+            # but the actual context creation is the part that was failing.
+            stream = self.classifier_llm.chat(chat_ctx=chat_ctx)
+            response = await stream.collect()
+            
+            # 4. Extract content safely
+            if hasattr(response, "content"):
+                label = response.content.strip().upper()
+            elif hasattr(response, "choices"):
+                label = response.choices[0].message.content.strip().upper()
+            else:
+                # Last resort: cast the response to string
+                label = str(response).strip().upper()
+                
+            logger.info(f"[SalesAgent] LLM Result: {label}")
+            return "NEGATIVE" if "NEGATIVE" in label else "POSITIVE"
+            
+        except Exception as e:
+            logger.error(f"[SalesAgent] LLM process failed: {e}")
+            return "NEGATIVE"
 
     def classify_transcript_keyword_first(
         self, transcript: str
@@ -108,6 +158,7 @@ class GroqPreRecordedAgent:
             return "NEGATIVE"
 
         negative_phrases = [
+            "no",	
             "not interested",
             "don't want it",
             "dont want it",
@@ -126,14 +177,14 @@ class GroqPreRecordedAgent:
 
         # Exact "no" is a strong signal, but we don't want to match words
         # like "knowledge" accidentally, so keep it separate.
-        if normalized == "no" or normalized.startswith("no,"):
+        if normalized == "no" or normalized.startswith("no"):
             logger.info("Transcript contains explicit 'no' -> NEGATIVE.")
             return "NEGATIVE"
 
-        for phrase in negative_phrases:
-            if phrase in normalized:
-                logger.info("Transcript matched negative phrase '%s' -> NEGATIVE.", phrase)
-                return "NEGATIVE"
+        # for phrase in negative_phrases:
+        #     if phrase in normalized:
+        #         logger.info("Transcript matched negative phrase '%s' -> NEGATIVE.", phrase)
+        #         return "NEGATIVE"
 
         logger.info("Transcript did not match any negative phrase -> POSITIVE by default.")
         return "POSITIVE"
@@ -142,40 +193,95 @@ class GroqPreRecordedAgent:
     # ------------------------------------------------------------------
 
     async def entrypoint(self, ctx: JobContext) -> None:
-        """
-        Main entrypoint for this worker.
-
-        At runtime, LiveKit will:
-        - Assign a room/job to this worker.
-        - Call this function with a JobContext.
-        """
+     
         logger.info("[%s] Worker started, waiting for participant...", self.agent_name)
 
-        
-        # 2) Play the pre-recorded pitch to the room
-        #
-        # This now REALLY streams audio from self.pitch_path into the LiveKit room.
+        # 1. Play the pitch
         await self._play_wav_to_room(ctx.room, self.pitch_path, label="pitch")
 
-        # 3) Listen for user's reply with Groq STT (TODO)
-        #
-        # Target behavior:
-        #   - Subscribe to participant's audio track.
-        #   - Capture a short window (~2–5 seconds) after the pitch.
-        #   - Send that audio to groq.STT() and get a transcript string.
-        #
-        # For now, we simulate a transcript so we can demonstrate
-        # how classification and decision-making will look.
-        simulated_transcript = "oh okay"  # TODO: replace with real STT result
-        logger.info(
-            "[%s] TODO: Replace simulated transcript with Groq STT result. Current simulated transcript: %r",
-            self.agent_name,
-            simulated_transcript,
-        )
+        # 2. Initialize VAD (Silero is excellent for this)
+        local_vad = silero.VAD.load()
 
-        # 4) Classify transcript (keyword-first)
-        decision = self.classify_transcript_keyword_first(simulated_transcript)
-        logger.info("[%s] Classification decision: %s", self.agent_name, decision)
+        logger.info("[%s] Listening for user response...", self.agent_name)
+        user_transcript = ""
+     
+        #need to integrate it with VC dial
+       
+        try:
+            # 1. Find the user's audio track
+            audio_track = None
+            for participant in ctx.room.remote_participants.values():
+                for track_pub in participant.track_publications.values():
+                    if track_pub.kind == rtc.TrackKind.KIND_AUDIO:
+                        audio_track = track_pub.track
+                        break
+                if audio_track: break
+
+            if audio_track:
+                import numpy as np
+                audio_stream = rtc.AudioStream(audio_track)
+                frames = []
+                user_started_talking = False
+                
+                # Sensitivity settings
+                VOLUME_THRESHOLD = 0.01  # Lowered slightly for better detection
+                SILENCE_TIMEOUT = 2.0    # Giving user 2 seconds to breathe
+                
+                logger.info("[%s] Energy-Based Listener started. Speak now!", self.agent_name)
+                last_speech_time = asyncio.get_event_loop().time()
+
+                async for event in audio_stream:
+                    # Calculate volume
+                    audio_data = np.frombuffer(event.frame.data, dtype=np.int16)
+                    volume = np.sqrt(np.mean(audio_data.astype(np.float32)**2)) / 32768.0
+                    
+                    if volume > VOLUME_THRESHOLD:
+                        if not user_started_talking:
+                            logger.info("!!! SOUND DETECTED (Vol: %.4f) !!!", volume)
+                            user_started_talking = True
+                        
+                        frames.append(event.frame)
+                        last_speech_time = asyncio.get_event_loop().time()
+                    
+                    elif user_started_talking:
+                        frames.append(event.frame)
+                        if asyncio.get_event_loop().time() - last_speech_time > SILENCE_TIMEOUT:
+                            logger.info("Silence detected. Processing STT...")
+                            break
+                
+                await audio_stream.aclose()
+
+                if frames:
+                    logger.info("[%s] Sending %d frames to Groq STT...", self.agent_name, len(frames))
+                    
+                    # Create a single buffer from the frames
+                    # Note: Groq plugin usually takes an AudioFrame or a stream
+                    # We'll recognize the list of frames
+                    stt_res = await self.stt.recognize(buffer=frames)
+                    
+                    if stt_res.alternatives:
+                        user_transcript = stt_res.alternatives[0].text
+                        logger.info("[%s] Transcribed: %s", self.agent_name, user_transcript)
+            else:
+                logger.warning("[%s] No audio track found to listen to!", self.agent_name)
+
+        except Exception as e:
+            logger.error("[%s] STT/VAD Error: %s", self.agent_name, e)
+
+
+        logger.info("[%s] Final Transcript: %r", self.agent_name, user_transcript)
+
+        # 4. Classification and Response (Rest of your code...)
+        decision = self.classify_transcript_keyword_first(user_transcript)
+        # ... rest of your flow
+        if decision == "POSITIVE" and user_transcript.strip():
+            logger.info("[%s] Keywords were neutral; asking LLM for fuzzy check...", self.agent_name)
+            decision = await self.classify_with_llm(user_transcript)
+     
+        # Check if the user hung up
+        if not ctx.room.remote_participants:
+            logger.info("User hung up before we could respond. Closing job.")
+            return
 
         # 5) Play the corresponding pre-recorded response
         if decision == "POSITIVE":
@@ -194,10 +300,7 @@ class GroqPreRecordedAgent:
         # 6) End – in a future iteration we might signal a transfer here
         logger.info("[%s] Call flow complete; worker will now finish job.", self.agent_name)
 
-    # ------------------------------------------------------------------
-    # Helper: play a WAV file into the current room
-    # ------------------------------------------------------------------
-
+    
     async def _play_wav_to_room(
         self,
         room: rtc.Room,
@@ -214,37 +317,48 @@ class GroqPreRecordedAgent:
             
             # Use 20ms frames
             frame_duration_ms = 20
-            samples_per_channel = int(sample_rate * (frame_duration_ms / 1000))
+            samples_per_frame = int(sample_rate * (frame_duration_ms / 1000))
             
             source = rtc.AudioSource(sample_rate, num_channels)
             track = rtc.LocalAudioTrack.create_audio_track(label, source)
-            await room.local_participant.publish_track(track)
-
-            # Calculation: 2 bytes per sample * channels * samples_per_channel
-            # For 48k stereo: 2 * 2 * 960 = 3840 bytes
-            expected_byte_size = 2 * num_channels * samples_per_channel
+            options = rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE)
+            publication = await room.local_participant.publish_track(track, options)
+            
+            # High-precision timing
+            start_time = asyncio.get_event_loop().time()
+            frames_sent = 0
 
             while True:
-                raw_data = wf.readframes(samples_per_channel)
+                raw_data = wf.readframes(samples_per_frame)
                 if not raw_data:
                     break
                 
+                # Ensure the buffer is the correct size (padding if necessary)
+                expected_len = samples_per_frame * num_channels * 2 # 2 bytes per sample
                 # Padding the last frame if it's too short
-                if len(raw_data) < expected_byte_size:
-                    raw_data += b'\x00' * (expected_byte_size - len(raw_data))
+                if len(raw_data) < expected_len:
+                    raw_data += b'\x00' * (expected_len - len(raw_data))
 
                 frame = rtc.AudioFrame(
                     data=raw_data,
                     sample_rate=sample_rate,
                     num_channels=num_channels,
-                    samples_per_channel=samples_per_channel,
+                    samples_per_channel=samples_per_frame,
                 )
 
                 await source.capture_frame(frame)
-                await asyncio.sleep(frame_duration_ms / 1000)
+                frames_sent += 1
+                #await asyncio.sleep(frame_duration_ms / 1000)
+                # Calculate exactly when the NEXT frame should be sent
+                next_frame_time = start_time + (frames_sent * frame_duration_ms / 1000)
+                now = asyncio.get_event_loop().time()
+                sleep_time = next_frame_time - now
+            
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
 
             # Unpublish track to clean up
-            await room.local_participant.unpublish_track(track.sid)
+            await room.local_participant.unpublish_track(publication.sid)
             logger.info("[%s] Finished playing %s", self.agent_name, label)
 
 """
@@ -269,7 +383,7 @@ async def main_entrypoint(ctx: JobContext):
     agent = GroqPreRecordedAgent()
 
     # 2. Connect the agent to the room
-    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
     
     # 3. Wait until a participant is present
     await ctx.wait_for_participant()
