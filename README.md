@@ -5,7 +5,7 @@ A scalable AI-powered call center system using LiveKit, ViciDial, and GPT agents
 ## Architecture
 
 - **LiveKit Server**: Real-time audio streaming and communication
-- **Python AI Agents**: GPT-powered voice agents for sales calls
+- **Python AI Agents**: Groq-powered voice agents for sales calls
 - **ViciDial Integration**: Call management and routing
 - **NestJS Backend**: API and management layer
 - **React Frontend**: Dashboard and monitoring
@@ -44,7 +44,7 @@ cp env.example .env
 # Edit .env and add your OPENAI_API_KEY
 
 pip install -r requirements.txt
-python agent.py
+python agent.py dev
 ```
 
 ### 4. Test the Agent
@@ -65,13 +65,22 @@ python test_agent.py  # In a new terminal
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   ├── env.example      # Copy to .env and add your keys
-│   └── SETUP_GUIDE.md   # Detailed setup instructions
+│   └── SETUP_GUIDE.md   # Detailed setup instructions 
+├── config/              
+│   ├── livekit.yaml
+│   └── sip.yaml
+├── asterisk/              
+│   ├── Dockerfile
+│   ├── extentions.conf
+│   └── pjsip.conf 
 ├── ARCHITECTURE.md      # How the system works (read this!)
 ├── QUICK_START.md       # Quick start guide
 ├── test_agent.py        # Test script to create rooms
 ├── backend/             # NestJS API server (coming soon)
 ├── frontend/            # React dashboard (coming soon)
 ├── docker-compose.yml   # LiveKit + Redis
+├── generate_token.py   # token generated for a room to test livekit connection in web
+├── setup_sip.py
 └── README.md
 ```
 

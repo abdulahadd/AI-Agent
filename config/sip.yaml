@@ -1,0 +1,11 @@
+log_level: debug
+sip_port: 5061
+rtp_port_start: 10000
+rtp_port_end: 10050
+
+api_key: "APIcA62hn2JKGHg"
+api_secret: "dbtqsLSMNVWM5yXjqkZRRSoFvNHRLbDtg5k5BOMV6PH"
+ws_url: "ws://livekit-server:7880"
+
+redis:
+  address: "redis:6379"

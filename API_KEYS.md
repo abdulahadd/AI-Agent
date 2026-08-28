@@ -8,15 +8,15 @@
 
 ## 🔑 What You Need to Get
 
-### OpenAI API Key (REQUIRED)
+### Groq Key (REQUIRED)
 
-**Why:** Your agent uses OpenAI for everything:
+**Why:** Your agent uses Groq for everything:
 - GPT-4 for conversations
-- OpenAI Whisper for speech-to-text (STT)
-- OpenAI TTS for text-to-speech
+- Groq Whisper for speech-to-text (STT)
+- Groq 'openai/gpt-oss-20b'
 
 **How to get it:**
-1. Go to: https://platform.openai.com/api-keys
+1. Go to: https://console.groq.com
 2. Sign up or log in
 3. Click "Create new secret key"
 4. Copy the key (starts with `sk-`)
@@ -26,14 +26,14 @@
 cd agents
 cp env.example .env
 # Edit .env and add:
-OPENAI_API_KEY=sk-your-actual-key-here
+GROQ_API_KEY=sk-your-actual-key-here
 ```
 
 ## Summary
 
 **To test right now:**
 1. ✅ LiveKit keys - Already have them
-2. ⚠️ OpenAI key - **Get this one** (5 minutes)
+2. ⚠️ Groq key - **Get this one** (5 minutes)
 
 **That's it!** Just one API key needed - everything uses OpenAI now.
 

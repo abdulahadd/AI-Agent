@@ -29,16 +29,16 @@ cd agents
 cp env.example .env
 ```
 
-3. Edit `.env` and add your **OpenAI API key**:
+3. Edit `.env` and add your **Groq API key**:
 ```bash
 # Open .env in your editor
 # Add your actual OpenAI API key:
-OPENAI_API_KEY=sk-your-actual-key-here
+GROQ_API_KEY=sk-your-actual-key-here
 ```
 
 **Important:** You need:
 - ✅ LiveKit URL, API Key, Secret (already in env.example)
-- ✅ **OpenAI API Key** (you must add this!)
+- ✅ **GROQ API Key** (you must add this!)
 
 ## Step 2: Install Dependencies
 
@@ -49,14 +49,15 @@ pip install -r requirements.txt
 
 This installs:
 - `livekit-agents` - Core agent framework
-- `livekit-plugins-openai` - GPT and TTS
-- `livekit-plugins-deepgram` - Speech-to-text
+- `livekit-plugins-groq`  STT and LLM
+<!-- - `livekit-plugins-openai` - GPT and TTS
+- `livekit-plugins-deepgram` - Speech-to-text -->
 - `livekit-plugins-silero` - Voice detection
 
 ## Step 3: Run the Agent
 
 ```bash
-python agent.py
+python agent.py dev
 ```
 
 **What you should see:**
@@ -100,8 +101,8 @@ python test_agent.py
 - Check the URL matches: `ws://localhost:7880`
 
 ### "OpenAI API error"
-- Make sure your `OPENAI_API_KEY` is set in `.env`
-- Check you have credits in your OpenAI account
+- Make sure your `GROQ_API_KEY` is set in `.env`
+- We are using free tier Groq key for now
 
 ### Agent connects but nothing happens
 - This is normal! It's waiting for a room to be created
@@ -120,7 +121,7 @@ INFO: SalesAgent conversation started successfully!
 Then the agent will:
 1. Say the initial greeting (sales_script)
 2. Listen for the person's response
-3. Process with GPT-4
+3. Process STT and then LLM
 4. Respond naturally
 5. Continue the conversation
 

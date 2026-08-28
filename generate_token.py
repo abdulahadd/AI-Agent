@@ -15,7 +15,7 @@ async def create_token():
 
     token = api.AccessToken(api_key, api_secret) \
         .with_identity(participant_identity) \
-        .with_name("Human User") \
+        .with_name("Test User") \
         .with_grants(api.VideoGrants(
             room_join=True,
             room=room_name,

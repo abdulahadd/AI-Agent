@@ -10,7 +10,8 @@ services:
     ports:
       - "7880:7880"    # LiveKit server port
       - "7881:7881"    # LiveKit WebSocket port
-      - "7882:7882/udp"
+      - "5060:5060/udp"
+      - "50000-50020:50000-50020/udp"
     volumes:
       - ./config/livekit.yaml:/etc/livekit.yaml:ro
     networks:
@@ -30,9 +31,20 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+  asterisk:
+    build:
+      context: ./asterisk
+      dockerfile: Dockerfile
+    container_name: local_asterisk
+    network_mode: "host" # Allows seamless UDP SIP/RTP packet routing
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   redis-data:
 
 networks:
   livekit-network:
     driver: bridge
+
