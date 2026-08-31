@@ -41,6 +41,30 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  sip-setup:
+    build:
+      context: .
+      dockerfile: agents/Dockerfile
+    command: python3 setup_sip.py
+    env_file: .env
+    network_mode: "host"
+    restart: "no" # Runs once to set up SIP dispatches, then exits
+    depends_on:
+      - livekit-server
+
+  sales-agent:
+    build:
+      context: .
+      dockerfile: agents/Dockerfile
+    command: python3 agents/agent.py start
+    env_file: .env
+    network_mode: "host"
+    restart: "no" # Will not keep running if you shut down SSH / exit
+    depends_on:
+      sip-setup:
+        condition: service_completed_successfully # Waits until SIP setup finishes 0 exit code
+
+
 volumes:
   redis-data:
 

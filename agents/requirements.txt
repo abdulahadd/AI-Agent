@@ -1,9 +1,6 @@
 # LiveKit Core Dependencies
 livekit-agents~=1.0
 livekit-plugins-groq
-livekit-plugins-openai~=1.0
-livekit-plugins-deepgram~=1.0
-livekit-plugins-silero~=1.0
-
-# Environment and utilities
+livekit-plugins-silero
 python-dotenv~=1.0
+numpy
