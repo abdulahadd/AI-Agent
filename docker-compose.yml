@@ -56,8 +56,6 @@ services:
       dockerfile: agents/Dockerfile
     command: python3 setup_sip.py
     env_file: .env
-    environment:
-    - LIVEKIT_URL=${LIVEKIT_URL}
     network_mode: "host"
     restart: "no" # Runs once to set up SIP dispatches, then exits
     depends_on:
