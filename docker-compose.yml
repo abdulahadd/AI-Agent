@@ -37,6 +37,15 @@ services:
       dockerfile: Dockerfile
     container_name: local_asterisk
     network_mode: "host" # Allows seamless UDP SIP/RTP packet routing
+    env_file: .env
+    volumes:
+      - ./pjsip.conf.template:/etc/asterisk/pjsip.conf.template:ro
+      - ./config/asterisk:/etc/asterisk
+    command: >
+      sh -c "
+        envsubst '$$PUBLIC_IP $$PJSIP_SECRET' < /etc/asterisk/pjsip.conf.template > /etc/asterisk/pjsip.conf &&
+        asterisk -f
+      "
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -47,6 +56,8 @@ services:
       dockerfile: agents/Dockerfile
     command: python3 setup_sip.py
     env_file: .env
+    environment:
+    - LIVEKIT_URL=${LIVEKIT_URL}
     network_mode: "host"
     restart: "no" # Runs once to set up SIP dispatches, then exits
     depends_on:

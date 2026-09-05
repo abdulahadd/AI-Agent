@@ -1,9 +1,10 @@
 import asyncio
+import os
 from livekit import api
 
-LIVEKIT_URL = "http://localhost:7880"
-API_KEY = "APIcA62hn2JKGHg"
-API_SECRET = "dbtqsLSMNVWM5yXjqkZRRSoFvNHRLbDtg5k5BOMV6PH"
+LIVEKIT_URL = os.getenv("LIVEKIT_URL", "http://livekit-server:7880")
+API_KEY = os.getenv("LIVEKIT_API_KEY", "APIcA62hn2JKGHg")
+API_SECRET = os.getenv("LIVEKIT_API_SECRET", "dbtqsLSMNVWM5yXjqkZRRSoFvNHRLbDtg5k5BOMV6PH")
 
 async def main():
     lkapi = api.LiveKitAPI(LIVEKIT_URL, API_KEY, API_SECRET)
