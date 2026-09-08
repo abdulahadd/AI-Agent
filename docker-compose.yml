@@ -38,9 +38,9 @@ services:
     container_name: local_asterisk
     network_mode: "host" # Allows seamless UDP SIP/RTP packet routing
     env_file: .env
-    volumes:
-      - ./pjsip.conf.template:/etc/asterisk/pjsip.conf.template:ro
-      - ./config/asterisk:/etc/asterisk
+    # volumes:
+    #   - ./pjsip.conf.template:/etc/asterisk/pjsip.conf.template:ro
+      # - ./config/asterisk:/etc/asterisk
     command: >
       sh -c "
         envsubst '$$PUBLIC_IP $$PJSIP_SECRET' < /etc/asterisk/pjsip.conf.template > /etc/asterisk/pjsip.conf &&
@@ -58,7 +58,12 @@ services:
     env_file: .env
     networks:
       - livekit-network
-    restart: "no" # Runs once to set up SIP dispatches, then exits
+    restart: "on-failure" # Runs once to set up SIP dispatches, then exitsrestart: on-failure
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 5
     depends_on:
       - livekit-server
 
@@ -69,7 +74,7 @@ services:
     command: python3 agents/agent.py start
     env_file: .env
     network_mode: "host"
-    restart: "no" # Will not keep running if you shut down SSH / exit
+    restart: unless-stopped
     depends_on:
       sip-setup:
         condition: service_completed_successfully # Waits until SIP setup finishes 0 exit code

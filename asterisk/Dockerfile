@@ -4,8 +4,12 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y asterisk && \
+    apt-get install -y asterisk gettext-base && \
     rm -rf /var/lib/apt/lists/*
+
+# Copy configuration files directly into the image
+COPY pjsip.conf.template /etc/asterisk/pjsip.conf.template
+COPY extensions.conf /etc/asterisk/extensions.conf
 
 COPY pjsip.conf /etc/asterisk/pjsip.conf
 COPY extensions.conf /etc/asterisk/extensions.conf
