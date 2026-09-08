@@ -54,3 +54,6 @@ models/
 #local md files
 AZURE-VM-AI-AGENT-OP-GUIDE.md
 
+# Ignore generated Asterisk config files
+pjsip.conf
+*.env

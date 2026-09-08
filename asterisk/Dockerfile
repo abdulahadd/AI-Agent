@@ -11,10 +11,13 @@ RUN apt-get update && \
 COPY pjsip.conf.template /etc/asterisk/pjsip.conf.template
 COPY extensions.conf /etc/asterisk/extensions.conf
 COPY modules.conf /etc/asterisk/modules.conf
+COPY entrypoint.sh /entrypoint.sh
 
-COPY pjsip.conf /etc/asterisk/pjsip.conf
-COPY extensions.conf /etc/asterisk/extensions.conf
+
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 5060/udp 10000-20000/udp
 
 CMD ["asterisk", "-f"]
+
+ENTRYPOINT ["/entrypoint.sh"]
