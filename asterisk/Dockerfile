@@ -10,6 +10,7 @@ RUN apt-get update && \
 # Copy configuration files directly into the image
 COPY pjsip.conf.template /etc/asterisk/pjsip.conf.template
 COPY extensions.conf /etc/asterisk/extensions.conf
+COPY modules.conf /etc/asterisk/modules.conf
 
 COPY pjsip.conf /etc/asterisk/pjsip.conf
 COPY extensions.conf /etc/asterisk/extensions.conf
