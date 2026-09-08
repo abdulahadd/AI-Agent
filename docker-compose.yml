@@ -10,7 +10,6 @@ services:
     ports:
       - "7880:7880"    # LiveKit server port
       - "7881:7881"    # LiveKit WebSocket port
-      # - "5060:5060/udp"
       - "50000-50020:50000-50020/udp"
     volumes:
       - ./config/livekit.yaml:/etc/livekit.yaml:ro
@@ -42,6 +41,10 @@ services:
       - PUBLIC_IP=${PUBLIC_IP}
       - PJSIP_SECRET=${PJSIP_SECRET}
     restart: unless-stopped
+    ports:
+  - "5070:5070/udp"
+  - "5071:5071/tcp"
+  - "10000-20000:10000-20000/udp"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

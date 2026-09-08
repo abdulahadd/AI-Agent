@@ -13,7 +13,7 @@ external_signaling_address=${PUBLIC_IP}
 [transport-tcp]
 type=transport
 protocol=tcp
-bind=0.0.0.0:5070
+bind=0.0.0.0:5071
 external_media_address=${PUBLIC_IP}
 external_signaling_address=${PUBLIC_IP}
 
@@ -24,7 +24,7 @@ context=from-softphone
 disallow=all
 allow=ulaw,alaw,opus
 auth=auth1000
-aors=1000
+aors=aor1000
 direct_media=no
 rtp_symmetric=yes
 force_rport=yes
@@ -36,7 +36,7 @@ auth_type=userpass
 username=1000
 password=${PJSIP_SECRET}
 
-[1000]
+[aor1000]
 type=aor
 max_contacts=5
 remove_existing=yes
