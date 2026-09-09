@@ -6,7 +6,7 @@ user_agent=Asterisk-Azure-Agent
 [transport-udp]
 type=transport
 protocol=udp
-bind=0.0.0.0:5070
+bind=0.0.0.0:49152
 external_media_address=${PUBLIC_IP}
 external_signaling_address=${PUBLIC_IP}
 
