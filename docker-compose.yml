@@ -41,8 +41,6 @@ services:
       - PUBLIC_IP=${PUBLIC_IP}
       - PJSIP_SECRET=${PJSIP_SECRET}
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   sip-setup:
     build:
@@ -52,7 +50,6 @@ services:
     env_file: .env
     networks:
       - livekit-network
-    restart: "on-failure" # Runs once to set up SIP dispatches, then exitsrestart: on-failure
     deploy:
       restart_policy:
         condition: on-failure
