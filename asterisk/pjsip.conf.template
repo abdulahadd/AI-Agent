@@ -16,7 +16,6 @@ protocol=tcp
 bind=0.0.0.0:5071
 external_media_address=${PUBLIC_IP}
 external_signaling_address=${PUBLIC_IP}
-keep_alive=30
 
 ; 2. Local Softphone Endpoint (MicroSIP Extension 1000)
 [1000]
