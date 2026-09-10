@@ -12,6 +12,7 @@ COPY pjsip.conf.template /etc/asterisk/pjsip.conf.template
 COPY extensions.conf /etc/asterisk/extensions.conf
 COPY modules.conf /etc/asterisk/modules.conf
 COPY http.conf /etc/asterisk/http.conf
+COPY ari.conf /etc/asterisk/ari.conf
 COPY entrypoint.sh /entrypoint.sh
 
 
